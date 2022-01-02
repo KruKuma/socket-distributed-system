@@ -1,6 +1,51 @@
 import socket
 import threading
 
+employeeID = ["E00123", "E01033"]
+employeeName = ["Aadya Khan", "John Smith"]
+employeeSalary = [38566, 43123]
+salaryYear = [2016, 2017, 2018]
+yearlySalForKhan = [29800, 32032, 35604]
+yearlySalForSmith = [30800, 36032, 41604]
+overTimeForKhan = [2412, 2134, 3212]
+overTimeForSmith = [2123, 2124, 2587]
+currentLeave = [25, 20]
+leaveYear = [2016, 2017, 2018]
+yearlyLeaveForKhan = [22, 32, 31]
+yearlyLeaveForSmith = [18, 31, 31]
+
+
+def msgYearlyTotal(index, year):
+    indexYear = salaryYear.index(year)
+    if index == 0:
+        basicPay = yearlySalForKhan[indexYear]
+        overTime = overTimeForKhan[indexYear]
+
+    if index == 1:
+        basicPay = yearlySalForSmith[indexYear]
+        overTime = overTimeForSmith[indexYear]
+
+    msgToClientSal = f'\nEmployee {employeeName[index]}' \
+                     f'\nTotal Salary for {year}: Basic pay, {basicPay}, Overtime, {overTime}' \
+                     f'\nWould you like to continue (C) or exit (X)?'
+
+    return msgToClientSal
+
+
+def msgLeaveForYear(index, year):
+    indexYear = leaveYear.index(year)
+    if index == 0:
+        leaveTaken = yearlyLeaveForKhan[indexYear]
+
+    if index == 1:
+        leaveTaken = yearlyLeaveForSmith[indexYear]
+
+    msg = f'\nEmployee {employeeName[index]}' \
+          f'\nLeave take in {year}: {leaveTaken} days' \
+          f'\nWould you like to continue (C) or exit (X)?'
+
+    return msg
+
 
 class ClientThread(threading.Thread):
 
@@ -13,33 +58,114 @@ class ClientThread(threading.Thread):
     def run(self):
         print("Connection from : ", clientAddress)
 
-        employeeID = ["E00123", "E01033"]
-        employeeName = ["Aadya Khan", "John Smith"]
-        employeeSalary = [38566, 43123]
+        data = self.c_socket.recv(2048)
+        msg = data.decode()
+        print("from client", msg)
 
-        while True:
-            self.c_socket.send(bytes('HR System 1.0'
+        leave = False
+
+        while not leave:
+            leave = False
+            self.c_socket.send(bytes('\nHR System 1.0'
                                      '\nWhat is the employee id?', 'UTF-8'))
-            data = self.c_socket.recv(512)
+            data = self.c_socket.recv(2048)
             employeeIDRecv = data.decode()
-            print(employeeIDRecv)
+            print("from client", employeeIDRecv)
 
             if employeeIDRecv in employeeID:
-                self.c_socket.send(bytes('Salary (S) or Annual Leave (L) Query?', 'UTF-8'))
+                print("Valid ID")
+                self.c_socket.send(bytes('\nSalary (S) or Annual Leave (L) Query?', 'UTF-8'))
                 data = self.c_socket.recv(512)
                 msg = data.decode()
 
-                if msg == 'S':
-                    index = employeeID.index(employeeIDRecv)
-                    msg = employeeSalary[index]
-                    self.c_socket.send(bytes(msg, 'UTF-8'))
-                if msg == 'L':
-                    self.c_socket.send(bytes('Current Entitlement (C) or Leave taken for your (Y)', 'UTF-8'))
-                    data = self.c_socket.recv(512)
-                    msg = data.decode()
+                if msg == 'S' or msg == 's':
+                    self.c_socket.send(bytes('\nCurrent salary (C) or total salary (T) for year?', 'UTF-8'))
+                    while True:
+                        data = self.c_socket.recv(512)
+                        msgSalary = data.decode()
+                        if msgSalary == 'C' or msgSalary == 'c':
+                            index = employeeID.index(employeeIDRecv)
+                            msgSalSend = f'\nEmployee {employeeName[index]} ' \
+                                         f'\nCurrent basic salary: {employeeSalary[index]}' \
+                                         f'\nWould you like to continue (C) or exit (X)?'
+                            self.c_socket.send(bytes(msgSalSend, 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msg = data.decode()
+
+                            if msg == 'X' or msg == 'x':
+                                leave = True
+
+                            break
+
+                        elif msgSalary == 'T' or msgSalary == 't':
+                            index = employeeID.index(employeeIDRecv)
+                            self.c_socket.send(bytes('\nWhat year?', 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msgYear = data.decode()
+                            year = int(msgYear)
+                            msg = msgYearlyTotal(index, year)
+
+                            self.c_socket.send(bytes(msg, 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msg = data.decode()
+
+                            if msg == 'X' or msg == 'x':
+                                leave = True
+
+                            break
+
+                        else:
+                            self.c_socket.send(bytes('\nNot an option!'
+                                                     '\nCurrent salary (C) or total salary (T) for year?', 'UTF-8'))
+
+                elif msg == 'L' or msg == 'l':
+                    self.c_socket.send(bytes('\nCurrent Entitlement (C) or Leave taken for your (Y)', 'UTF-8'))
+                    while True:
+                        data = self.c_socket.recv(512)
+                        msgLeave = data.decode()
+                        if msgLeave == 'C' or msgLeave == 'c':
+                            index = employeeID.index(employeeIDRecv)
+                            msgCLeave = f'\nEmployee {employeeName[index]}' \
+                                        f'\nCurrent annual leave entitlement: {currentLeave[index]}' \
+                                        f'\nWould you like to continue (C) or exit (X)?'
+
+                            self.c_socket.send(bytes(msgCLeave, 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msg = data.decode()
+
+                            if msg == 'X' or msg == 'x':
+                                leave = True
+
+                            break
+
+                        elif msgLeave == 'Y' or msgLeave == 'y':
+                            index = employeeID.index(employeeIDRecv)
+                            self.c_socket.send(bytes('\nWhat year?', 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msgYear = data.decode()
+                            year = int(msgYear)
+                            msgYLeave = msgLeaveForYear(index, year)
+
+                            self.c_socket.send(bytes(msgYLeave, 'UTF-8'))
+                            data = self.c_socket.recv(512)
+                            msg = data.decode()
+
+                            if msg == 'X' or msg == 'x':
+                                leave = True
+
+                            break
+
+                        else:
+                            self.c_socket.send(bytes('\nNot an option!'
+                                                     '\nCurrent Entitlement (C) or Leave taken for your (Y)', 'UTF-8'))
+
+                else:
+                    self.c_socket.send(bytes('\nNot an option!'
+                                             '\nCurrent salary (C) or total salary (T) for year?', 'UTF-8'))
 
             else:
-                self.c_socket.send(bytes('Sorry... I don\'t recognise that employee id', 'UTF-8'))
+                self.c_socket.send(bytes('\nSorry... I don\'t recongnise that employee ID'
+                                         '\nWhat is the employee id?', 'UTF-8'))
 
         print("Client at ", clientAddress, " disconnected...")
 
