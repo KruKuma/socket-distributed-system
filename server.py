@@ -1,4 +1,6 @@
+import json
 import socket
+import pika
 import threading
 
 employeeID = ["E00123", "E01033"]
@@ -47,6 +49,18 @@ def msgLeaveForYear(index, year):
     return msg
 
 
+def record_statistics(employee_index, msgRecv):
+    username = employeeID[employee_index]
+    message = [username, msgRecv]
+    connection = pika.BlockingConnection(pika.ConnectionParameters('localhost'))  # we could parameterize the host
+    channel = connection.channel()
+    channel.queue_declare(queue='player-stats')
+    channel.basic_publish(exchange='',
+                          routing_key='player-stats',
+                          body=json.dumps(message))
+    connection.close()
+
+
 class ClientThread(threading.Thread):
 
     def __init__(self, client_address, client_socket, identity):
@@ -77,12 +91,15 @@ class ClientThread(threading.Thread):
                 self.c_socket.send(bytes('\nSalary (S) or Annual Leave (L) Query?', 'UTF-8'))
                 data = self.c_socket.recv(512)
                 msg = data.decode()
+                employeeID_Index = employeeID.index(employeeIDRecv)
+                record_statistics(employeeID_Index, msg)
 
                 if msg == 'S' or msg == 's':
                     self.c_socket.send(bytes('\nCurrent salary (C) or total salary (T) for year?', 'UTF-8'))
                     while True:
                         data = self.c_socket.recv(512)
                         msgSalary = data.decode()
+                        record_statistics(employeeID_Index, msgSalary)
                         if msgSalary == 'C' or msgSalary == 'c':
                             index = employeeID.index(employeeIDRecv)
                             msgSalSend = f'\nEmployee {employeeName[index]} ' \
@@ -91,6 +108,8 @@ class ClientThread(threading.Thread):
                             self.c_socket.send(bytes(msgSalSend, 'UTF-8'))
                             data = self.c_socket.recv(512)
                             msg = data.decode()
+
+                            record_statistics(employeeID_Index, msg)
 
                             if msg == 'X' or msg == 'x':
                                 leave = True
@@ -102,6 +121,7 @@ class ClientThread(threading.Thread):
                             self.c_socket.send(bytes('\nWhat year?', 'UTF-8'))
                             data = self.c_socket.recv(512)
                             msgYear = data.decode()
+                            record_statistics(employeeID_Index, msgYear)
                             year = int(msgYear)
                             msg = msgYearlyTotal(index, year)
 
@@ -109,6 +129,7 @@ class ClientThread(threading.Thread):
                             data = self.c_socket.recv(512)
                             msg = data.decode()
 
+                            record_statistics(employeeID_Index, msg)
                             if msg == 'X' or msg == 'x':
                                 leave = True
 
@@ -123,6 +144,7 @@ class ClientThread(threading.Thread):
                     while True:
                         data = self.c_socket.recv(512)
                         msgLeave = data.decode()
+                        record_statistics(employeeID_Index, msgLeave)
                         if msgLeave == 'C' or msgLeave == 'c':
                             index = employeeID.index(employeeIDRecv)
                             msgCLeave = f'\nEmployee {employeeName[index]}' \
@@ -132,6 +154,7 @@ class ClientThread(threading.Thread):
                             self.c_socket.send(bytes(msgCLeave, 'UTF-8'))
                             data = self.c_socket.recv(512)
                             msg = data.decode()
+                            record_statistics(employeeID_Index, msg)
 
                             if msg == 'X' or msg == 'x':
                                 leave = True
@@ -143,12 +166,14 @@ class ClientThread(threading.Thread):
                             self.c_socket.send(bytes('\nWhat year?', 'UTF-8'))
                             data = self.c_socket.recv(512)
                             msgYear = data.decode()
+                            record_statistics(employeeID_Index, msgYear)
                             year = int(msgYear)
                             msgYLeave = msgLeaveForYear(index, year)
 
                             self.c_socket.send(bytes(msgYLeave, 'UTF-8'))
                             data = self.c_socket.recv(512)
                             msg = data.decode()
+                            record_statistics(employeeID_Index, msg)
 
                             if msg == 'X' or msg == 'x':
                                 leave = True

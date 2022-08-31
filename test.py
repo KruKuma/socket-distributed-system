@@ -1,3 +1,5 @@
+import self as self
+
 employeeID = ["E00123", "E01033"]
 
 employeeIDRecv = input("Enter ID:\t")
